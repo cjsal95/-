@@ -1,3 +1,4 @@
+
 #include <iostream>
  
 #include <opencv/cv.h>
@@ -7,57 +8,98 @@
 using namespace cv;
 using namespace std;
 
-Mat NF1(Mat image);
+Mat NF1(Mat image, int min);
 Mat NF2(Mat image, int matX, int matY, int noise);
 
 Mat NF4(Mat image, int edge);
 Mat NFx4(Mat image, int edge);
 
 Mat NoiseFiltering(Mat image);
-Mat Histogram(Mat img_input);
+Mat Histogram(Mat image);
 
 Mat GRASSFIRE(Mat image, int matX, int matY, float f);
 
 
 int main() {
 
-	//Mat img = imread("cement_cracked (596).jpg", CV_LOAD_IMAGE_COLOR);  
-	Mat img = imread("cement_cracked (22).jpg", CV_8U);  
+	Mat img = imread("cement_cracked (590).jpg", CV_8U);
+	Mat img1 = imread("cement_cracked (12).jpg", CV_8U); 
 
 	if(img.empty()) {
 		cout<<"Error reading image"<<endl;
 		return 0;
 	}
+
+	int min = 255;
+
+	
+	for(int i = 0; i < img.cols; i++) {                      
+		for(int j = 0; j < img.rows; j++) {
+
+			if(img.at<uchar>(j, i) < min) 
+				min = img.at<uchar>(j, i);
+						
+		}
+	}
+
+	int min1 = 255;
+
+	for(int i = 0; i < img1.cols; i++) {                      
+		for(int j = 0; j < img1.rows; j++) {
+
+			if(img1.at<uchar>(j, i) < min) 
+				min1 = img1.at<uchar>(j, i);
+						
+		}
+	}
+	//printf("min = %d\n", min);
+
 	/*
-	Mat Rimg, Gimg, Bimg;
+	Mat img_sharpening;
+	img_sharpening.create(img.size(), img.type());
+	const int nChannels = img.channels();
 
-	vector<Mat> channels;
-	split(img, channels);    // 채널 분리
+	for(int j = 1; j < img.rows - 1; ++j)
+	{
+		const uchar* previous = img.ptr<uchar>(j - 1);
+		const uchar* current = img.ptr<uchar>(j);
+		const uchar* next = img.ptr<uchar>(j + 1);
 
-	Bimg = channels[0];
-	Gimg = channels[1];
-	Rimg = channels[2];
+		uchar* output = img_sharpening.ptr<uchar>(j);
+		for(int i = nChannels; i < nChannels*(img.cols - 1); ++i)
+		{
+			*output++ = saturate_cast<uchar>(5 * current[i] - current[i - nChannels]  - current[i+nChannels] - previous[i] - next[i]);
+		}
+	}
 
-	adaptiveThreshold(Bimg, Bimg, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 91, 49); // 69, 65
-	adaptiveThreshold(Gimg, Gimg, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 91, 49);
-	adaptiveThreshold(Rimg, Rimg, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 91, 49);
+	img_sharpening.row(0).setTo(Scalar(0));
+	img_sharpening.row(img_sharpening.rows - 1).setTo(Scalar(0));
+	img_sharpening.col(0).setTo(Scalar(0));
+	img_sharpening.col(img_sharpening.cols - 1).setTo(Scalar(0));
+	imshow("Sharpening", img_sharpening);
 
-	medianBlur(Bimg, Bimg, 5);
-	medianBlur(Gimg, Gimg, 5);
-	medianBlur(Rimg, Rimg, 5);
-
-
-	//imshow("Bimg", Bimg);
-	//imshow("Gimg", Gimg);
-	//imshow("Rimg", Rimg);
-
-	img = channels[0] + channels[1] + channels[2];   // 채널 합체!
 	*/
-	medianBlur(img, img, 3);
-	adaptiveThreshold(img, img, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 91, 43);
-	medianBlur(img, img, 3);
+	
+	NF1(img, min);
+	NF1(img1, min1);
 
+	medianBlur(img1, img1, 3);
+	medianBlur(img, img,  3);
+
+	img = 255 - img;
+	img1 = 255 - img1;
+
+	NFx4(img1, 0);
+	NFx4(img, 0);
+
+	imshow("img", img);
+	imshow("img1", img1);
+	
 	NoiseFiltering(img);
+	//img1 = NoiseFiltering(img1);
+
+	//imshow("dst", img);
+	//imshow("dst1", img1);
 	
 	waitKey(0);
 
@@ -69,11 +111,66 @@ Mat NoiseFiltering(Mat image) {
 
 	Mat dst, dst1;
 
-	bitwise_not(image, image);   // 반전
+	dst.create(image.size(), CV_8U);
+
+	dst = 0;
+
+	Mat img1 = image.clone(), img2 = image.clone(), img3 = image.clone();
+
+	//NF2(img1, 10, 3, 12);
+
+	int num1 = 0, num2 = 0;
+	NF2(img2, 4, 4, 8); // NF3
+
+	for(int i = 0; i < img2.cols; i++) {                      
+		for(int j = 0; j < img2.rows; j++) {
+
+			if(img2.at<uchar>(j, i) != 0 && img2.at<uchar>(j, i) != 255)  // 77
+				num1++;			
+		}
+	}
+
+	printf("num = %d\n", num1);
+	if(num1 > 2000) {
+		for(int i = 0; i < img2.cols; i++) {                      
+			for(int j = 0; j < img2.rows; j++) {
+
+			if(img2.at<uchar>(j, i) != 0 && img2.at<uchar>(j, i) != 255)  // 77
+				img2.at<uchar>(j, i) = 0;			
+			}
+		}
+	}
+
+	NF4(img3, 0);
+
+	for(int i = 0; i < img3.cols; i++) {                      
+		for(int j = 0; j < img3.rows; j++) {
+
+			if(img3.at<uchar>(j, i) != 0 && img3.at<uchar>(j, i) != 255)  // 77
+				num1++;			
+		}
+	}
+
+	printf("num = %d\n", num1);
+	if(num1 > 2000) {
+		for(int i = 0; i < img3.cols; i++) {                      
+			for(int j = 0; j < img3.rows; j++) {
+
+			if(img3.at<uchar>(j, i) != 0 && img3.at<uchar>(j, i) != 255)  // 77
+				img3.at<uchar>(j, i) = 0;			
+			}
+		}
+	}
+
+
+	dst = img2 + img3;
+
+	imshow("dst befor", dst);
 	
+	//adaptiveThreshold(dst, dst, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 91, 49);
 	////////////////////////////////////////////////////////////////////////////////
 	
-	Mat binary = image.clone();
+	Mat binary = dst.clone();
 
 	// 외곽선을 포함하는 벡터
 	vector<vector<Point>> contours;
@@ -95,79 +192,77 @@ Mat NoiseFiltering(Mat image) {
 		approxPolyDP(*it, poly, 10, true);
 
 		// 사각형을 갖는가?
-		if (poly.size() < 2) 
+		if (poly.size() == 1) 
 			// 사각형을 그린다
-			polylines(image, poly, true, 0, 4);
+			polylines(dst, poly, true, 0, 10);
    
 		++it;
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
-	imshow("image", image);
+	
+	medianBlur(dst, dst, 3);
 
-	Mat img1 = image.clone(), img2 = image.clone(), img3 = image.clone(), img4 = image.clone(), img5 = image.clone();
+	//NF4(dst, 0);
 
-	NF2(img1, 8, 2, 13);
+	////////////////////////////////////////////////////////////////////////////////
+	
+	Mat binary1 = dst.clone();
 
-	NF2(img2, 4, 4, 12);
+	// 외곽선을 포함하는 벡터
+	vector<vector<Point>> contours1;
 
-	NF4(img3, 0);
+	// 연결 성분의 외곽선 얻기
+	findContours (binary1, contours1, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+  
+	// 모든 외관선에 대해
+	vector<vector<Point>>::iterator it1 = contours1.begin();
 
-	//NFx4(img4, 0);
-	/*
-	for(int i = 0; i < img3.rows; i++) {                      
-		for(int j = 0; j < img3.cols; j++) {
+	// POLY
+	vector<Point> poly1;
 
-			if(img3.at<uchar>(i, j) != img4.at<uchar>(i, j)) 
-				img4.at<uchar>(i, j) = 0;
-		}
+	while (it1 != contours1.end())
+	{
+		poly1.clear();
+
+		// 다각형으로 외곽선 근사화
+		approxPolyDP(*it1, poly1, 10, true);
+
+		// 사각형을 갖는가?
+		if (poly1.size() == 1) 
+			// 사각형을 그린다
+			polylines(dst, poly1, true, 0, 10);
+   
+		++it1;
 	}
-	*/
-	medianBlur(img3, img3, 3);
+	
+	////////////////////////////////////////////////////////////////////////////////
 
-	//NF2(img4, 5, 5, 24);
 
-	//addWeighted(athimg , 1, img1, 1, 0.0, dst);
-	addWeighted(img1, 1, img2, 1, 0.0, dst);
-	addWeighted(dst, 1, img3, 1, 0.0, dst1);
-
-	imshow("NF2 + NF3", dst);
-
-	imshow("NF2", img1);
-
+	//imshow("NF2", img1);
 	imshow("NF3", img2);
-
 	imshow("NF4", img3);
-
-	//imshow("NFx4", img4);
-
-	imshow("dst", dst1);
-
-	imwrite("dst.jpg", dst);
+	imshow("dst", dst);
+	//imwrite("dst.jpg", dst);
 
 	return dst;
 
 }
 
-Mat NF1(Mat image) {
+Mat NF1(Mat image, int min) {
 
-	int i, j;
+	for(int i = 0; i < image.cols; i++) {                      
+		for(int j = 0; j < image.rows; j++) {
 
-	for(i = 0; i < image.cols; i++) {                      
-		for(j = 0; j < image.rows; j++) {
-
-			if(image.at<uchar>(j, i) < 90) 
+			if(image.at<uchar>(j, i) < min + 97)  // 97
 				image.at<uchar>(j, i) = 0;
-			else
-				image.at<uchar>(j, i) = 255;
-			
+			else if(image.at<uchar>(j, i) > min + 124) //124
+				image.at<uchar>(j, i) = 255;			
 		}
 	}
 
 	return image;
 }
-
-
 
 Mat NF4(Mat image, int edge) {
 
@@ -177,21 +272,19 @@ Mat NF4(Mat image, int edge) {
 		for(y = 0; y < image.cols; y++) {
 				  
 			
-			if(y + 3 < image.cols && image.at<uchar>(x, y) > edge) {
+			if(y + 2 < image.cols && image.at<uchar>(x, y) > edge) {
 				if(image.at<uchar>(x, y) > edge && 
 				   image.at<uchar>(x, y + 1) > edge &&
-				   image.at<uchar>(x, y + 2) > edge &&
-				   image.at<uchar>(x, y + 3)) {
+				   image.at<uchar>(x, y + 2) > edge) {
 				
-					   y += 3;
+					   y += 2;
 				}
 				else {
 					image.at<uchar>(x, y) = 0;
 					image.at<uchar>(x, y + 1) = 0;
 					image.at<uchar>(x, y + 2) = 0;
-					image.at<uchar>(x, y + 3) = 0;
 
-					y += 3;
+					y += 2;
 				}
 			}
 			
@@ -209,13 +302,17 @@ Mat NFx4(Mat image, int edge) {
 	for(y = 0; y < image.cols; y++) {
 		for(x = 0; x < image.rows; x++) {
 				  
-			
+			/*
 			if(x + 3 < image.rows && image.at<uchar>(x, y) > edge) {
-				if(image.at<uchar>(x, y) > edge && 
-				   image.at<uchar>(x+1, y) > edge &&
-				   image.at<uchar>(x+2, y) > edge &&
-				   image.at<uchar>(x+3, y)) {
+				if(image.at<uchar>(x+1, y) == 255 ||
+				   image.at<uchar>(x+2, y) == 255 ||
+				   image.at<uchar>(x+3, y) == 255) {
 				
+					   x += 3;
+				}
+				else if(image.at<uchar>(x+1, y) > edge &&
+				   image.at<uchar>(x+2, y) > edge &&
+				   image.at<uchar>(x+3, y) > edge) {
 					   x += 3;
 				}
 				else {
@@ -225,6 +322,24 @@ Mat NFx4(Mat image, int edge) {
 					image.at<uchar>(x+3, y) = 0;
 
 					x += 3;
+				}
+			}*/
+			if(x + 2 < image.rows && image.at<uchar>(x, y) > edge) {
+				if(image.at<uchar>(x+1, y) == 255 ||
+				   image.at<uchar>(x+2, y) == 255 ) {
+				
+					   x += 2;
+				}
+				else if(image.at<uchar>(x+1, y) > edge &&
+				   image.at<uchar>(x+2, y) > edge ) {
+					   x += 2;
+				}
+				else {
+					image.at<uchar>(x, y) = 0;
+					image.at<uchar>(x+1, y) = 0;
+					image.at<uchar>(x+2, y) = 0;
+
+					x += 2;
 				}
 			}
 			
@@ -280,44 +395,3 @@ Mat NF2(Mat image, int matX, int matY, int noise) {
 
 
 
-Mat GRASSFIRE(Mat image, int matX, int matY, float f) {
-
-	int noise, m, n;
-	float vote;
-
-	for(int x = 0; x <= image.rows - matX; x++) {
-		for(int y = 0; y <= image.cols - matY; y++) {
-
-			Mat ROI(image, Rect(y, x, matY, matX));
-
-			noise = 0;
-			
-			for(m =0; m < matX; m++) {
-				for(n = 0; n < matY; n++) {
-					
-					if(ROI.at<uchar>(m, n) > 0)        // 해당 픽셀에 값이 잡음일 경우 noise++
-						noise++;
-				}
-			}
-
-			vote = noise / (matX * matY);
-
-
-			if(f < vote) {                             
-				
-				for(m =0; m < matX; m++) {
-					for(n = 0; n < matY; n++) {
-						ROI.at<uchar>(m, n) = 0;
-					}
-				}
-			}
-
-			y += (matY - 1); 
-
-		}
-		x += (matX - 1);
-	}
-
-
-	return image;
-}
